@@ -1,8 +1,21 @@
 server:
   port: 8080
+
 spring:
   application:
     name: super-trader-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/supertrader}
+    username: ${DB_USERNAME:supertrader}
+    password: ${DB_PASSWORD:supertrader_dev}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
 management:
   endpoints:
     web:
