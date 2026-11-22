@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bell, BookOpen, CandlestickChart, ChevronDown, CircleHelp, LayoutDashboard, Search, ShieldCheck, SlidersHorizontal, Star, Target, TrendingUp, Wallet, Zap } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import PaperTradingPanel from './PaperTradingPanel';
 
 type Candle = { time: string; close: number };
 type Stock = { symbol: string; name: string; price: number; change: number; volume: string; sector: string; candles: Candle[] };
