@@ -2,10 +2,13 @@ services:
   backend:
     build: ./backend
     ports: ["8080:8080"]
+    restart: unless-stopped
   analysis:
     build: ./analysis
     ports: ["8001:8001"]
+    restart: unless-stopped
   frontend:
     build: ./frontend
     ports: ["5173:5173"]
     depends_on: [backend, analysis]
+    restart: unless-stopped
