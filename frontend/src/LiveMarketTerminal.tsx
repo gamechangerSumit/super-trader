@@ -25,7 +25,9 @@ const TIMEFRAMES = [
 
 function epoch(value: string): number {
   const n = Number(value);
-  if (Number.isFinite(n) && n > 1000000000000) return Math.floor(n / 1000);\n  if (Number.isFinite(n) && n > 1000000000) return Math.floor(n);\n  return Math.floor(new Date(value).getTime() / 1000);
+  if (Number.isFinite(n) && n > 1000000000000) return Math.floor(n / 1000);
+  if (Number.isFinite(n) && n > 1000000000) return Math.floor(n);
+  return Math.floor(new Date(value).getTime() / 1000);
 }
 
 function chartTime(value: string): any { return epoch(value) as any; }
