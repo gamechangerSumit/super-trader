@@ -17,7 +17,7 @@ The market terminal uses Upstox because its official developer platform currentl
 
 1. Create/sign in to your Upstox account.
 2. Create a developer app in the [Upstox Developer Portal](https://developer.upstox.com/).
-3. Generate a valid market-data access/analytics token for your app.
+3. Open the **Analytics** tab in Developer Apps and generate the **Analytics Token**. It is read-only, free, valid for one year, and supports market data plus WebSocket feeds. It cannot place, modify or cancel orders.
 4. Copy the example environment file and add the token locally:
 
 PowerShell:
@@ -34,10 +34,10 @@ UPSTOX_ACCESS_TOKEN=PASTE_YOUR_OWN_TOKEN_HERE
 DB_PASSWORD=choose-a-local-password
 ```
 
-Never commit `.env`, paste API secrets into chat, or expose the token in frontend code. `.env` is ignored by Git. Use a token permitted for market-data APIs and renew it when Upstox requires. The application never asks for your Upstox password.
+Never commit `.env`, paste the token into chat, or expose it in frontend code. `.env` is ignored by Git. The Analytics Token is read-only and cannot place, modify or cancel broker orders. The application never asks for your Upstox password.
 
 Official references:
-- [Upstox authentication](https://upstox.com/developer/api-documentation/authentication/)
+- [Upstox Analytics Token](https://upstox.com/developer/api-documentation/analytics-token/)
 - [Market Data Feed V3](https://upstox.com/developer/api-documentation/v3/get-market-data-feed/)
 - [Historical Candle Data V3](https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/)
 - [Instrument master files](https://upstox.com/developer/api-documentation/instruments/)
