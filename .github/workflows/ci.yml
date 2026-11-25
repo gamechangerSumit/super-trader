@@ -49,3 +49,17 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
+
+  market-data:
+    name: Upstox adapter tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: market-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest -q
