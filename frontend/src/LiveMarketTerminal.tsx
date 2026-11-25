@@ -40,6 +40,20 @@ function ema(values: number[], period: number): number[] {
   return out;
 }
 
+function calculateVwap(candles: Candle[]): { time: any; value: number }[] {
+  let session = ''; let cumulativePriceVolume = 0; let cumulativeVolume = 0;
+  const result: { time: any; value: number }[] = [];
+  candles.forEach(candle => {
+    const localDate = new Date((epoch(candle.time) + 19800) * 1000).toISOString().slice(0, 10);
+    if (localDate !== session) { session = localDate; cumulativePriceVolume = 0; cumulativeVolume = 0; }
+    const typical = (candle.high + candle.low + candle.close) / 3;
+    cumulativePriceVolume += typical * candle.volume;
+    cumulativeVolume += candle.volume;
+    if (cumulativeVolume > 0) result.push({ time: chartTime(candle.time), value: cumulativePriceVolume / cumulativeVolume });
+  });
+  return result;
+}
+
 function calculateRsi(values: number[], period = 14): number | null {
   if (values.length < period + 1) return null;
   const diffs = values.slice(1).map((value, index) => value - values[index]);
@@ -74,6 +88,7 @@ export default function LiveMarketTerminal() {
   const volumeSeries = useRef<any>(null);
   const ema20Series = useRef<any>(null);
   const ema50Series = useRef<any>(null);
+  const vwapSeries = useRef<any>(null);
   const chartRef = useRef<any>(null);
   const priceLines = useRef<any[]>([]);
   const candlesRef = useRef<Candle[]>([]);
@@ -119,6 +134,7 @@ export default function LiveMarketTerminal() {
     });
     ema20Series.current = chart.addSeries(LineSeries, { color: '#f0bd59', lineWidth: 1, title: 'EMA 20', priceLineVisible: false });
     ema50Series.current = chart.addSeries(LineSeries, { color: '#7c8cff', lineWidth: 1, title: 'EMA 50', priceLineVisible: false });
+    vwapSeries.current = chart.addSeries(LineSeries, { color: '#55cde0', lineWidth: 1, title: 'VWAP', priceLineVisible: false });
     volumeSeries.current = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' }, priceScaleId: '', priceLineVisible: false,
     });
@@ -263,6 +279,7 @@ export default function LiveMarketTerminal() {
           const closes = visible.map(c => c.close);
           ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(visible[index].time), value })));
           ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: chartTime(visible[index].time), value })));
+          vwapSeries.current?.setData(calculateVwap(visible));
           return visible;
         });
       } catch { /* Ignore malformed provider messages; never fabricate a quote. */ }
@@ -281,6 +298,8 @@ export default function LiveMarketTerminal() {
       { price: analysis.stopLossReference, color: '#f07883', title: 'STOP' },
       { price: analysis.target1Reference, color: '#75a7ff', title: 'TARGET 1' },
       { price: analysis.target2Reference, color: '#ad8cff', title: 'TARGET 2' },
+      { price: analysis.indicators.priorSupport, color: '#d08b67', title: 'PRIOR SUPPORT' },
+      { price: analysis.indicators.priorResistance, color: '#d08b67', title: 'PRIOR RESISTANCE' },
     ];
     lines.forEach(line => {
       if (line.price !== null && line.price !== undefined) {
@@ -307,7 +326,7 @@ export default function LiveMarketTerminal() {
     {error && <div className="market-error"><AlertTriangle size={15}/>{error}</div>}
     <div className="live-symbol-row"><div><b>{instrument?.symbol || 'Select instrument'}</b><span>{instrument?.name || 'Search an NSE equity above'}</span><small>{instrument?.instrumentKey || ''}</small></div><div className="live-last">{last ? <><b>₹{last.close.toLocaleString('en-IN',{maximumFractionDigits:2})}</b><span>Latest candle close · {new Date(last.time).toLocaleTimeString('en-IN')}</span></> : <span>Waiting for authenticated market data</span>}</div></div>
     <div className="live-chart-wrap"><div ref={chartHost} className="live-chart"/></div>
-    <div className="chart-legend"><span><i className="legend-candle"/> Candles</span><span><i className="legend-ema20"/> EMA 20</span><span><i className="legend-ema50"/> EMA 50</span><span><i className="legend-volume"/> Volume</span><span>Provider: Upstox</span></div>
+    <div className="chart-legend"><span><i className="legend-candle"/> Candles</span><span><i className="legend-ema20"/> EMA 20</span><span><i className="legend-ema50"/> EMA 50</span><span><i className="legend-vwap"/> VWAP</span><span><i className="legend-volume"/> Volume</span><span>Provider: Upstox</span></div>
     <div className="indicator-strip">
       <div><small>RSI 14</small><b>{rsiValue === null ? '—' : rsiValue.toFixed(2)}</b><span>{rsiValue === null ? 'Need 15+ candles' : rsiValue >= 70 ? 'Overbought zone' : rsiValue <= 30 ? 'Oversold zone' : 'Neutral range'}</span></div>
       <div><small>MACD 12/26</small><b>{macdValue.macd === null ? '—' : macdValue.macd.toFixed(3)}</b><span>{macdValue.macd !== null && macdValue.signal !== null ? macdValue.macd >= macdValue.signal ? 'Above signal' : 'Below signal' : 'Need 35+ candles'}</span></div>
@@ -315,6 +334,7 @@ export default function LiveMarketTerminal() {
       <div><small>EMA 50</small><b>{analysis?.indicators.ema50?.toFixed(2) ?? '—'}</b><span>Trend filter</span></div>
       <div><small>ATR 14</small><b>{analysis?.indicators.atr14?.toFixed(2) ?? '—'}</b><span>Volatility</span></div>
       <div><small>Volume ratio</small><b>{analysis?.indicators.volumeRatio?.toFixed(2) ?? '—'}x</b><span>vs 20-candle avg</span></div>
+      <div><small>Prior S / R</small><b>{analysis?.indicators.priorSupport?.toFixed(1) ?? '—'} / {analysis?.indicators.priorResistance?.toFixed(1) ?? '—'}</b><span>19-candle range</span></div>
     </div>
     <div className="setup-panel">
       <div className="setup-panel-title"><div><Activity size={16}/><b>Technical setup indication</b></div><span className={analysis?.setup === 'LONG_WATCH' ? 'setup-long' : analysis?.setup === 'SHORT_WATCH' ? 'setup-short' : 'setup-wait'}>{analysis?.setup || 'WAIT / NO SETUP'}</span></div>
