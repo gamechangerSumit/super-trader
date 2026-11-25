@@ -42,8 +42,8 @@
 .chart-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 17px;border-top:1px solid #1d2b3e;color:#8192a7;font-size:8px}
 .chart-legend span{display:flex;align-items:center;gap:5px}
 .chart-legend i{display:inline-block;width:12px;height:3px;border-radius:2px}
-.legend-candle{background:#25c995}.legend-ema20{background:#f0bd59}.legend-ema50{background:#7c8cff}.legend-volume{background:#62758e}
-.indicator-strip{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid #1e2c3e;border-bottom:1px solid #1e2c3e}
+.legend-candle{background:#25c995}.legend-ema20{background:#f0bd59}.legend-ema50{background:#7c8cff}.legend-vwap{background:#55cde0}.legend-volume{background:#62758e}
+.indicator-strip{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #1e2c3e;border-bottom:1px solid #1e2c3e}
 .indicator-strip>div{padding:12px 14px;border-right:1px solid #1e2c3e;min-width:0}
 .indicator-strip>div:last-child{border-right:0}
 .indicator-strip small,.setup-levels small{display:block;font-size:8px;color:#8496ac;letter-spacing:.6px}
