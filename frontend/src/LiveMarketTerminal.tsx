@@ -182,8 +182,8 @@ export default function LiveMarketTerminal() {
         const closes = rows.map(c => c.close);
         candleSeries.current?.setData(rows.map(c => ({ time: chartTime(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
         ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(rows[index].time), value })));
-        ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: epoch(rows[index].time), value })));
-        volumeSeries.current?.setData(rows.map(c => ({ time: epoch(c.time), value: c.volume, color: c.close >= c.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' })));
+        ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: chartTime(rows[index].time), value })));
+        volumeSeries.current?.setData(rows.map(c => ({ time: chartTime(c.time), value: c.volume, color: c.close >= c.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' })));
         chartRef.current?.timeScale().fitContent();
         await runAnalysis(rows, instrument.symbol);
       } else {
