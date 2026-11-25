@@ -33,13 +33,25 @@ services:
       - "8001:8001"
     restart: unless-stopped
 
+  market-data:
+    build: ./market-data
+    environment:
+      UPSTOX_ACCESS_TOKEN: ${UPSTOX_ACCESS_TOKEN:-}
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
+    environment:
+      VITE_MARKET_API_BASE_URL: http://localhost:8002
+      VITE_ANALYSIS_API_BASE_URL: http://localhost:8001
     ports:
       - "5173:5173"
     depends_on:
       - backend
       - analysis
+      - market-data
     restart: unless-stopped
 
 volumes:
