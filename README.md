@@ -1,21 +1,52 @@
 # Super Trader
 
-A paper-trading-first market research platform for Indian equities. The application does not connect to a broker and does not place real orders.
+A read-only Indian market analysis terminal with live Upstox market data, real historical OHLC candles, technical indicators, ATR-based reference levels, and a persistent paper-trading simulator. **The app does not submit broker orders or execute trades.**
 
 ## Stack
 
-- Frontend: React, TypeScript, Vite, Recharts
-- API: Java 21, Spring Boot 3.4
-- Persistence: PostgreSQL 16, Spring Data JPA
-- Technical analysis: Python 3.12, FastAPI
+- Frontend: React, TypeScript, Vite, Lightweight Charts (candlesticks, EMA overlays and volume)
+- Backend: Java 21, Spring Boot, PostgreSQL (paper-trade persistence)
+- Market data: Python FastAPI adapter for Upstox instrument search, historical candles, full quotes and Market Data Feed V3 WebSocket
+- Analysis: Python FastAPI (EMA20/50, RSI14, ATR14, volume ratio, support/resistance context and explainable setup checklist)
 - Local orchestration: Docker Compose
-- CI: GitHub Actions (frontend build, backend tests, analysis tests)
+- CI: GitHub Actions
 
-## Run locally with Docker
+## 1. Configure Upstox market data
+
+The market terminal uses Upstox because its official developer platform currently advertises free access to trading and market-data APIs. Market data access still requires an Upstox account, a developer app and a valid API token.
+
+1. Create/sign in to your Upstox account.
+2. Create a developer app in the [Upstox Developer Portal](https://developer.upstox.com/).
+3. Generate a valid market-data access/analytics token for your app.
+4. Copy the example environment file and add the token locally:
+
+PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Set:
+
+```dotenv
+UPSTOX_ACCESS_TOKEN=PASTE_YOUR_OWN_TOKEN_HERE
+DB_PASSWORD=choose-a-local-password
+```
+
+Never commit `.env`, paste API secrets into chat, or expose the token in frontend code. `.env` is ignored by Git. Use a token permitted for market-data APIs and renew it when Upstox requires. The application never asks for your Upstox password.
+
+Official references:
+- [Upstox authentication](https://upstox.com/developer/api-documentation/authentication/)
+- [Market Data Feed V3](https://upstox.com/developer/api-documentation/v3/get-market-data-feed/)
+- [Historical Candle Data V3](https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/)
+- [Instrument master files](https://upstox.com/developer/api-documentation/instruments/)
+
+## 2. Start the complete stack
 
 Requirements: Docker Desktop with Compose v2.
 
-```bash
+```powershell
 docker compose up --build
 ```
 
@@ -23,50 +54,58 @@ Services:
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:5173 |
+| Frontend terminal | http://localhost:5173 |
 | Backend health | http://localhost:8080/api/health |
 | Paper trading summary | http://localhost:8080/api/paper/summary |
-| Analysis health | http://localhost:8001/health |
 | Analysis API docs | http://localhost:8001/docs |
-| PostgreSQL | localhost:5432 |
+| Market data health | http://localhost:8002/health |
+| Market data status | http://localhost:8002/api/market/status |
+| Market data API docs | http://localhost:8002/docs |
 
-PostgreSQL data is stored in the named Docker volume `super-trader-postgres` and survives container restarts. To remove the database and all saved paper trades intentionally, run `docker compose down -v`.
+The first market-data image build installs the Upstox Python SDK and may take a few minutes. If the token is missing or expired, the UI reports the issue and does not fall back to fabricated quotes.
 
-## Paper trading API
+## 3. Live terminal capabilities
+
+- NSE cash-equity symbol search using Upstox's official instrument master.
+- Historical OHLCV candles for 1m, 5m, 15m, 1H and 1D timeframes.
+- Upstox Market Data Feed V3 WebSocket subscription for the selected instrument.
+- Lightweight candlestick chart with volume and EMA20/EMA50 overlays.
+- RSI14 and MACD readouts, plus EMA20/50, ATR14 and volume-ratio values.
+- Explainable bullish/ bearish / wait checklist and ATR-based entry-reference, stop-reference and target-reference levels.
+- Provider status and visible errors when token, feed or candle retrieval is unavailable.
+
+The historical API returns actual provider candles. The WebSocket is used to update the current chart candle from provider feed messages. Market updates are available only when the exchange/provider is streaming data and the token has the required permissions.
+
+## 4. Analysis is an indication, not an order
+
+The Python analysis service calculates:
+- EMA20 and EMA50 trend context
+- RSI14 momentum
+- ATR14 volatility
+- Relative volume versus the recent 20-candle average
+- Prior 19-candle high/low context
+- A 0–100 rule checklist score (not a win probability)
+
+When the rule checklist qualifies, it displays an ATR-based reference entry, stop and two targets. These are chart annotations for study and paper testing, not broker instructions. Wait for candle close and independently validate the setup. No algorithm can guarantee the next price movement.
+
+## 5. Paper trading
 
 - `GET /api/paper/summary`
 - `GET /api/paper/trades`
 - `POST /api/paper/trades`
+- `POST /api/paper/trades/{id}/close`
 
-Example request:
+The simulator starts with ₹1,00,000 virtual capital, limits risk per trade to 1% of initial capital, and prevents open-position notional exposure from exceeding available virtual capital. Paper trades persist in PostgreSQL. Brokerage, taxes, slippage and market execution are not modelled yet.
 
-```json
-{
-  "symbol": "RELIANCE",
-  "entryPrice": 1000,
-  "quantity": 1,
-  "stopLoss": 990,
-  "target": 1020
-}
-```
+PostgreSQL data is stored in the named Docker volume `super-trader-postgres`. To intentionally delete all local database data and paper trades, run `docker compose down -v`.
 
-- `POST /api/paper/trades/{id}/close` with `{"exitPrice":1010}`
+## 6. Current limitations before real-world reliance
 
-The simulator starts with ₹1,00,000 virtual capital, limits risk per trade to 1% of initial capital, and prevents open-position notional exposure from exceeding available virtual capital. It supports long-only trades in this MVP. Realized P&L excludes brokerage, taxes, slippage and other execution costs.
+- A valid Upstox API token and required market-data permissions are mandatory; this repository does not include credentials.
+- The current scanner is symbol search plus selected-symbol analysis. A full-market scheduled scanner and alerts are not implemented yet.
+- Only the selected instrument is streamed by the chart terminal.
+- Indicator calculations and setup rules are an initial research baseline, not a validated profitable strategy. Backtesting, walk-forward validation, transaction costs, slippage, market holidays and corporate actions must be handled before relying on signals.
+- The older overview cards and sample watchlist are explicitly illustrative demo values; the live terminal above is the provider-backed market-data area.
+- No broker order endpoints, automatic execution, real-money trading or profit guarantees are included.
 
-## Analysis API
-
-`POST /api/v1/analyze` accepts at least 50 timestamped OHLCV candles and returns EMA20, EMA50, RSI14, volume ratio, a transparent rule-based setup score, direction and warnings. The score is not a win probability or a recommendation.
-
-## Configuration
-
-For local development, Docker Compose supplies the database connection. You can override the development database password with the `DB_PASSWORD` environment variable before running Compose.
-
-## Current limitations — read before use
-
-- Dashboard index and stock values are illustrative demo values. No licensed live NSE/BSE market-data provider is connected.
-- The AI/technical-analysis service is ready to analyze supplied OHLCV candles, but no automated exchange scanner or scheduled ingestion pipeline is connected yet.
-- Paper trades persist in PostgreSQL, but there is no broker integration, live order execution, real-money functionality, or guarantee of profit.
-- The strategy score is an indicator checklist, not a probability forecast. Any future strategy should be backtested out of sample with transaction costs and slippage before practical use.
-
-This repository is a development MVP, not a production trading system or investment advice.
+This is a development and research tool, not investment advice. Always make your own trading decisions.
