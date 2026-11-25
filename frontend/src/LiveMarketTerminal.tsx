@@ -25,7 +25,7 @@ const TIMEFRAMES = [
 
 function epoch(value: string): number {
   const n = Number(value);
-  return Number.isFinite(n) && n > 100000000000 ? Math.floor(n / 1000) : Math.floor(new Date(value).getTime() / 1000);
+  if (Number.isFinite(n) && n > 1000000000000) return Math.floor(n / 1000);\n  if (Number.isFinite(n) && n > 1000000000) return Math.floor(n);\n  return Math.floor(new Date(value).getTime() / 1000);
 }
 
 function ema(values: number[], period: number): number[] {
@@ -51,7 +51,7 @@ function macd(values: number[]): { macd: number | null; signal: number | null } 
   const fast = ema(values, 12);
   const slow = ema(values, 26);
   const line = fast.map((value, index) => value - slow[index]);
-  return { macd: line[line.length - 1], signal: ema(line, 9).at(-1) ?? null };
+  return { macd: line[line.length - 1], signal: ema(line, 9)[line.length - 1] ?? null };
 }
 
 export default function LiveMarketTerminal() {
@@ -154,8 +154,8 @@ export default function LiveMarketTerminal() {
       setCandles(rows);
       if (rows.length) {
         const closes = rows.map(c => c.close);
-        candleSeries.current?.setData(rows.map(c => ({ time: epoch(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
-        ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: epoch(rows[index].time), value })));
+        candleSeries.current?.setData(rows.map(c => ({ time: chartTime(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
+        ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(rows[index].time), value })));
         ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: epoch(rows[index].time), value })));
         volumeSeries.current?.setData(rows.map(c => ({ time: epoch(c.time), value: c.volume, color: c.close >= c.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' })));
         chartRef.current?.timeScale().fitContent();
@@ -197,7 +197,7 @@ export default function LiveMarketTerminal() {
         let next: Candle | null = null;
         if (minute) {
           next = {
-            time: new Date(Number(minute.ts) > 1e12 ? Number(minute.ts) : Date.parse(minute.ts)).toISOString(),
+            time: new Date(Number(minute.ts) > 1e12 ? Number(minute.ts) : Number(minute.ts) > 1e9 ? Number(minute.ts) * 1000 : Date.parse(minute.ts)).toISOString(),
             open: Number(minute.open), high: Number(minute.high), low: Number(minute.low),
             close: Number(minute.close), volume: Number(minute.vol || 0),
           };
@@ -215,10 +215,10 @@ export default function LiveMarketTerminal() {
           else if (lastIndex >= 0 && timestamp > epoch(copy[lastIndex].time)) copy.push(next!);
           else return old;
           const visible = copy.slice(-2500);
-          candleSeries.current?.update({ time: timestamp, open: next!.open, high: next!.high, low: next!.low, close: next!.close });
-          volumeSeries.current?.update({ time: timestamp, value: next!.volume, color: next!.close >= next!.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' });
+          candleSeries.current?.update({ time: timestamp as any, open: next!.open, high: next!.high, low: next!.low, close: next!.close });
+          volumeSeries.current?.update({ time: timestamp as any, value: next!.volume, color: next!.close >= next!.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' });
           const closes = visible.map(c => c.close);
-          ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: epoch(visible[index].time), value })));
+          ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(visible[index].time), value })));
           ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: epoch(visible[index].time), value })));
           return visible;
         });
