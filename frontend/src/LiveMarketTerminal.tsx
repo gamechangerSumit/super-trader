@@ -233,9 +233,10 @@ export default function LiveMarketTerminal() {
 
   useEffect(() => {
     const series = candleSeries.current;
-    if (!series || !analysis) return;
+    if (!series) return;
     priceLines.current.forEach(line => { try { series.removePriceLine(line); } catch { /* already removed */ } });
     priceLines.current = [];
+    if (!analysis) return;
     const lines = [
       { price: analysis.entryReference, color: '#39d7a5', title: 'ENTRY REF' },
       { price: analysis.stopLossReference, color: '#f07883', title: 'STOP' },
