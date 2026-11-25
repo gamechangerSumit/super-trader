@@ -76,6 +76,10 @@ export default function LiveMarketTerminal() {
   const ema50Series = useRef<any>(null);
   const chartRef = useRef<any>(null);
   const priceLines = useRef<any[]>([]);
+  const candlesRef = useRef<Candle[]>([]);
+  const minuteVolumesRef = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => { candlesRef.current = candles; }, [candles]);
 
   const search = useCallback(async (term: string) => {
     if (!term.trim()) return;
@@ -143,7 +147,7 @@ export default function LiveMarketTerminal() {
 
   const loadCandles = useCallback(async () => {
     if (!instrument) return;
-    setLoading(true); setError(''); setAnalysis(null); setCandles([]);
+    setLoading(true); setError(''); setAnalysis(null); setCandles([]); candlesRef.current = [];
     try {
       const params = new URLSearchParams({
         instrument_key: instrument.instrumentKey, unit: timeframe.unit,
@@ -156,6 +160,8 @@ export default function LiveMarketTerminal() {
         time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume,
       }));
       setCandles(rows);
+      candlesRef.current = rows;
+      minuteVolumesRef.current.clear();
       if (rows.length) {
         const closes = rows.map(c => c.close);
         candleSeries.current?.setData(rows.map(c => ({ time: chartTime(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
@@ -177,7 +183,7 @@ export default function LiveMarketTerminal() {
   useEffect(() => { loadCandles(); }, [loadCandles]);
 
   useEffect(() => {
-    if (!instrument || !candles.length) return;
+    if (!instrument) return;
     const url = 'ws://localhost:8002/api/market/stream?instrument_keys=' + encodeURIComponent(instrument.instrumentKey);
     const ws = new WebSocket(url);
     ws.onopen = () => setStreamState('CONNECTED');
@@ -196,20 +202,51 @@ export default function LiveMarketTerminal() {
         if (!feed) return;
         const full = feed.fullFeed?.marketFF || feed.fullFeed || {};
         const quote = full.marketOHLC?.ohlc || feed.marketOHLC?.ohlc || [];
+        const dayCandle = quote.find((item: any) => item.interval === '1d');
         const minute = quote.find((item: any) => item.interval === 'I1');
         const ltpc = feed.ltpc || full.ltpc;
         let next: Candle | null = null;
-        if (minute) {
+
+        if (timeframe.label === '1D' && dayCandle) {
+          const rawTime = Number(dayCandle.ts);
+          const timestamp = rawTime > 1e12 ? rawTime : rawTime > 1e9 ? rawTime * 1000 : Date.parse(dayCandle.ts);
           next = {
-            time: new Date(Number(minute.ts) > 1e12 ? Number(minute.ts) : Number(minute.ts) > 1e9 ? Number(minute.ts) * 1000 : Date.parse(minute.ts)).toISOString(),
-            open: Number(minute.open), high: Number(minute.high), low: Number(minute.low),
-            close: Number(minute.close), volume: Number(minute.vol || 0),
+            time: new Date(timestamp).toISOString(),
+            open: Number(dayCandle.open), high: Number(dayCandle.high), low: Number(dayCandle.low),
+            close: Number(dayCandle.close), volume: Number(dayCandle.vol || 0),
           };
-        } else if (ltpc?.ltp && candles.length) {
-          const last = candles[candles.length - 1];
+        } else if (minute) {
+          const rawTime = Number(minute.ts);
+          const minuteDate = new Date(rawTime > 1e12 ? rawTime : rawTime > 1e9 ? rawTime * 1000 : Date.parse(minute.ts));
+          const minuteEpoch = Math.floor(minuteDate.getTime() / 1000);
+          const bucketSeconds = timeframe.label === '1m' ? 60 : timeframe.label === '5m' ? 300 : timeframe.label === '15m' ? 900 : timeframe.label === '1H' ? 3600 : 86400;
+          const istDate = new Date((minuteEpoch + 19800) * 1000);
+          const istMidnight = Date.UTC(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate()) / 1000 - 19800;
+          const sessionStart = istMidnight + 9 * 3600 + 15 * 60;
+          const bucketEpoch = sessionStart + Math.floor((minuteEpoch - sessionStart) / bucketSeconds) * bucketSeconds;
+          const current = candlesRef.current[candlesRef.current.length - 1];
+          const currentBucket = current ? Math.floor((epoch(current.time) - sessionStart) / bucketSeconds) * bucketSeconds + sessionStart : -1;
+          const minuteVolume = Number(minute.vol || 0);
+          if (current && currentBucket === bucketEpoch) {
+            const previousMinuteVolume = minuteVolumesRef.current.get(minuteEpoch) || 0;
+            next = {
+              time: new Date(bucketEpoch * 1000).toISOString(), open: current.open,
+              high: Math.max(current.high, Number(minute.high)), low: Math.min(current.low, Number(minute.low)),
+              close: Number(minute.close), volume: Math.max(0, current.volume + minuteVolume - previousMinuteVolume),
+            };
+          } else if (!current || bucketEpoch > currentBucket) {
+            next = {
+              time: new Date(bucketEpoch * 1000).toISOString(), open: Number(minute.open),
+              high: Number(minute.high), low: Number(minute.low), close: Number(minute.close), volume: minuteVolume,
+            };
+          }
+          minuteVolumesRef.current.set(minuteEpoch, minuteVolume);
+        } else if (ltpc?.ltp && candlesRef.current.length) {
+          const current = candlesRef.current[candlesRef.current.length - 1];
           const price = Number(ltpc.ltp);
-          next = { ...last, high: Math.max(last.high, price), low: Math.min(last.low, price), close: price };
+          next = { ...current, high: Math.max(current.high, price), low: Math.min(current.low, price), close: price };
         }
+
         if (!next) return;
         setCandles(old => {
           const copy = [...old];
@@ -217,19 +254,21 @@ export default function LiveMarketTerminal() {
           const lastIndex = copy.length - 1;
           if (lastIndex >= 0 && epoch(copy[lastIndex].time) === timestamp) copy[lastIndex] = next!;
           else if (lastIndex >= 0 && timestamp > epoch(copy[lastIndex].time)) copy.push(next!);
+          else if (lastIndex < 0) copy.push(next!);
           else return old;
           const visible = copy.slice(-2500);
+          candlesRef.current = visible;
           candleSeries.current?.update({ time: timestamp as any, open: next!.open, high: next!.high, low: next!.low, close: next!.close });
           volumeSeries.current?.update({ time: timestamp as any, value: next!.volume, color: next!.close >= next!.open ? 'rgba(32,197,139,.35)' : 'rgba(240,111,125,.35)' });
           const closes = visible.map(c => c.close);
           ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(visible[index].time), value })));
-          ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: epoch(visible[index].time), value })));
+          ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: chartTime(visible[index].time), value })));
           return visible;
         });
       } catch { /* Ignore malformed provider messages; never fabricate a quote. */ }
     };
     return () => ws.close();
-  }, [instrument, timeframe, candles.length]);
+  }, [instrument, timeframe]);
 
   useEffect(() => {
     const series = candleSeries.current;
