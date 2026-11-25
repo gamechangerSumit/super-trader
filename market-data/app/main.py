@@ -5,6 +5,7 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -130,7 +131,7 @@ async def historical_candles(
         raise HTTPException(status_code=400, detail="Hour interval must be between 1 and 5.")
     if unit in {"days", "weeks", "months"} and interval != 1:
         raise HTTPException(status_code=400, detail="Day, week and month intervals must be 1.")
-    end = to_date or date.today()
+    end = to_date or datetime.now(ZoneInfo('Asia/Kolkata')).date()
     start = from_date or (end - timedelta(days=30 if unit == "minutes" and interval <= 15 else 90))
     if start > end:
         raise HTTPException(status_code=400, detail="from_date cannot be after to_date.")
