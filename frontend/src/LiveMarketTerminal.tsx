@@ -28,6 +28,8 @@ function epoch(value: string): number {
   if (Number.isFinite(n) && n > 1000000000000) return Math.floor(n / 1000);\n  if (Number.isFinite(n) && n > 1000000000) return Math.floor(n);\n  return Math.floor(new Date(value).getTime() / 1000);
 }
 
+function chartTime(value: string): any { return epoch(value) as any; }
+
 function ema(values: number[], period: number): number[] {
   if (!values.length) return [];
   const alpha = 2 / (period + 1);
