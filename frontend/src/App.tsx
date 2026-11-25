@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bell, BookOpen, CandlestickChart, ChevronDown, CircleHelp, LayoutDashboard, Search, ShieldCheck, SlidersHorizontal, Star, Target, TrendingUp, Wallet, Zap } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import PaperTradingPanel from './PaperTradingPanel';
+import LiveMarketTerminal from './LiveMarketTerminal';
 
 type Candle = { time: string; close: number };
 type Stock = { symbol: string; name: string; price: number; change: number; volume: string; sector: string; candles: Candle[] };
@@ -27,6 +28,8 @@ function App() {
   <main className="main"><header className="topbar"><div><span className="crumb">Workspace</span><span className="slash"> / </span><b>{tab}</b></div><div className="top-actions"><span className="market-pill"><i/> MARKET DATA: DEMO</span><button className="icon-btn" aria-label="Notifications"><Bell size={18}/></button><div className="avatar">ST</div></div></header>
    <section className="content"><div className="page-heading"><div><div className="eyebrow">SUNDAY, 22 NOVEMBER 2026 · INDIA</div><h1>{tab === 'Overview' ? 'Market overview' : tab}</h1><p>Research the market, validate setups and practice with virtual trades.</p></div><button className="secondary-btn"><SlidersHorizontal size={16}/> Customize view</button></div>
    <div className="notice"><ShieldCheck size={18}/><div><b>Practice environment</b><span>All prices and signals on this starter dashboard are illustrative demo data, not live NSE/BSE quotes.</span></div><span className="notice-tag">NO REAL MONEY</span></div>
+   <LiveMarketTerminal />
+   <div className="demo-section-label">ILLUSTRATIVE DASHBOARD PREVIEW · NOT LIVE MARKET DATA</div>
    <div className="metric-grid"><Metric label="NIFTY 50" value="24,812.40" change="+0.74%" up/><Metric label="SENSEX" value="81,456.20" change="+0.68%" up/><Metric label="BANK NIFTY" value="56,124.85" change="-0.21%"/><Metric label="INDIA VIX" value="14.82" change="-2.14%" up/></div>
    <div className="section-row"><div><h2>Market watch</h2><p>Choose a symbol to inspect its demo price trend.</p></div><div className="searchbox"><Search size={15}/><input placeholder="Search symbol or sector..." value={query} onChange={e=>setQuery(e.target.value)}/></div></div>
    <div className="two-col"><div className="panel watch-panel"><div className="panel-head"><b>Watchlist</b><span className="muted">NSE · DEMO</span></div><div className="stock-head"><span>INSTRUMENT</span><span>LAST PRICE</span><span>CHANGE</span><span>VOLUME</span><span/></div>{filtered.map(s=><button className={selected.symbol===s.symbol?'stock-row selected':'stock-row'} key={s.symbol} onClick={()=>setSelected(s)}><div><b>{s.symbol}</b><small>{s.name}</small></div><strong>{money(s.price)}</strong><span className={s.change>=0?'positive':'negative'}>{s.change>0?'+':''}{s.change.toFixed(2)}%</span><span className="muted">{s.volume}</span><Star size={15} className={watch.includes(s.symbol)?'star on':'star'} onClick={e=>{e.stopPropagation();setWatch(old=>old.includes(s.symbol)?old.filter(x=>x!==s.symbol):[...old,s.symbol])}}/></button>)}{filtered.length===0&&<div className="empty">No matching demo symbols.</div>}</div>
