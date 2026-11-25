@@ -279,7 +279,7 @@ export default function LiveMarketTerminal() {
           const closes = visible.map(c => c.close);
           ema20Series.current?.setData(ema(closes, 20).map((value, index) => ({ time: chartTime(visible[index].time), value })));
           ema50Series.current?.setData(ema(closes, 50).map((value, index) => ({ time: chartTime(visible[index].time), value })));
-          vwapSeries.current?.setData(calculateVwap(visible));
+          vwapSeries.current?.setData(timeframe.label === '1D' ? [] : calculateVwap(visible));
           return visible;
         });
       } catch { /* Ignore malformed provider messages; never fabricate a quote. */ }
