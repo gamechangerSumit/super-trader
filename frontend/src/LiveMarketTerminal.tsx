@@ -250,7 +250,7 @@ export default function LiveMarketTerminal() {
     });
   }, [analysis]);
 
-  const last = candles.at(-1);
+  const last = candles[candles.length - 1];
   const rsiValue = useMemo(() => calculateRsi(candles.map(c => c.close)), [candles]);
   const macdValue = useMemo(() => macd(candles.map(c => c.close)), [candles]);
 
